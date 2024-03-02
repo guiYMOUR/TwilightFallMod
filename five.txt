@@ -1,0 +1,13 @@
+ //多合成的获取和去除消耗
+        public boolean hasConsumer(Consume cons){
+            return consumeBuilder.contains(cons);
+        }
+
+        public void removeConsumer(Consume cons){
+            if(consumers.length > 0){
+                throw new IllegalStateException("You can only remove consumers before init(). After init(), all consumers have already been initialized.");
+            }
+            consumeBuilder.remove(cons);
+        }
+
+

@@ -1,0 +1,8 @@
+displayName: Twilight Fall
+name:"twilight-fall"
+author: guiY
+main: "TwilightFall.TwilightFallMod"
+description: "A java mod for Mindustry v7"
+version: 0.0.1
+java: true
+minGameVersion: 144
