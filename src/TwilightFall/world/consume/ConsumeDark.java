@@ -1,8 +1,8 @@
 package TwilightFall.world.consume;
 
-import TwilightFall.world.blocks.darkEng.DarkConsumer;
+import TwilightFall.world.blocks.dark.DarkBuilding;
+import TwilightFall.world.blocks.dark.DarkConsumer;
 import TwilightFall.world.meta.TFStatValues;
-import arc.Core;
 import mindustry.gen.Building;
 import mindustry.world.consumers.Consume;
 import mindustry.world.meta.Stat;
@@ -37,20 +37,20 @@ public class ConsumeDark extends Consume {
     @Override
     public void trigger(Building build) {
         if(smooth) return;
-        if(build instanceof DarkConsumer dc) {
-            if (dc.hasEng() >= amount) dc.consumeDark(amount);
+        if(build instanceof DarkBuilding db && build instanceof DarkConsumer dc) {
+            if (db.darkGet() >= amount) dc.consumeDark(amount);
         }
     }
 
     @Override
     public float efficiency(Building build) {
-        if(build instanceof DarkConsumer dc) {
+        if(build instanceof DarkBuilding db) {
             if (smooth) {
                 float ed = build.edelta() * build.efficiencyScale();
-                if (ed <= 0.00001f) return 0;
-                return Math.min(dc.hasEng() / (amount * ed * multiplier.get(build)), 1);
+                if (ed <= 1e-4f) return 0;
+                return Math.min(db.darkGet() / (amount * ed * multiplier.get(build)), 1);
             } else {
-                return build.consumeTriggerValid() || dc.hasEng() >= amount ? 1 : 0;
+                return build.consumeTriggerValid() || db.darkGet() >= amount ? 1 : 0;
             }
         }
         return 0;

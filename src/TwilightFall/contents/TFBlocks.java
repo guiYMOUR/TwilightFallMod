@@ -5,7 +5,10 @@ import TwilightFall.entities.bullets.RainbowCtLaser;
 import TwilightFall.entities.parts.gatherPart;
 import TwilightFall.entities.parts.gatherRegionPart;
 import TwilightFall.entities.parts.rainbowPart;
-import TwilightFall.world.blocks.darkEng.*;
+import TwilightFall.world.blocks.dark.DarkBlock;
+import TwilightFall.world.blocks.dark.DarkBridge;
+import TwilightFall.world.blocks.dark.DarkProducer;
+import TwilightFall.world.blocks.dark.DarkTube;
 import TwilightFall.world.blocks.defense.turrets.DartContinuousTurret;
 import TwilightFall.world.blocks.environment.*;
 import TwilightFall.world.blocks.product.AnyMtiCrafter;
@@ -14,6 +17,7 @@ import TwilightFall.world.blocks.product.Harvester;
 import TwilightFall.world.blocks.product.TFDrill;
 import TwilightFall.world.consume.ConsumeDark;
 import TwilightFall.world.drawer.DrawBottom;
+import TwilightFall.world.drawer.SizedBottom;
 import arc.Core;
 import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
@@ -55,7 +59,7 @@ public class TFBlocks {
             //ore
             oreChromium,
             //dark
-            darkExtractor, darkLine, darkRouter, darkJunction, darkBridge, darkCrafter, darkCrafter2,
+            darkExtractor, darkLine, darkBridge, darkLimBridge, darkCrafter, darkCrafter2,
             darkFlower, solidChromium, darkTree, chromiumTree,
             pothos,
 
@@ -68,34 +72,35 @@ public class TFBlocks {
             //turret
             spread, crossedRainbow;
 
+    //test
+    public static Block
+        t1, t2;
+
     public static void load() {
+
         oreChromium = new TTOre("ore-chromium", TFItems.chromium){{
             variants = 3;
             variantsLarge = 2;
             oreScale = 23.95f;
         }};
 
-
-        darkExtractor = new DarkEngProductor("dark-extractor") {{
+        darkExtractor = new DarkProducer("dark-extractor") {{
             requirements(Category.power, with());
-            outputEng = 12;
+            outputDark = 10;
             size = 2;
         }};
-        darkLine = new DarkLine("dark-line") {{
+        darkLine = new DarkTube("dark-line") {{
             requirements(Category.power, with());
         }};
-
-        darkRouter = new DarkRouter("dark-router") {{
-            requirements(Category.power, with());
-        }};
-
-        darkJunction = new DarkJunction("dark-junction") {{
-            requirements(Category.power, with());
-        }};
-
         darkBridge = new DarkBridge("dark-bridge"){{
             requirements(Category.power, with());
-            hasPower = false;
+        }};
+        darkLimBridge = new DarkBridge("dark-lim-bridge"){{
+            requirements(Category.power, with());
+            darkCapacity = 10;
+            range = 8;
+            minRange = 4;
+            drawer = new DrawMulti(new SizedBottom(), new DrawDefault(), new DrawRegion("-top"));
         }};
 
         darkCrafter = new DarkCrafter("d1") {{
