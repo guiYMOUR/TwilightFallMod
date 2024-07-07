@@ -42,6 +42,8 @@ import mindustry.world.draw.DrawBlock;
 import mindustry.world.draw.DrawDefault;
 import mindustry.world.meta.*;
 
+import java.util.Iterator;
+
 import static TwilightFall.TwilightFallMod.name;
 import static TwilightFall.contents.TFGet.*;
 import static mindustry.Vars.*;
@@ -49,14 +51,23 @@ import static mindustry.Vars.*;
 /**
  * @author guiY
  * */
-
 public class AnyMtiCrafter extends Block {
+    /** 配方表 {@link Formula}*/
     public Seq<Formula> products = new Seq<>();
+    /** 方块的drawer，如果{@link AnyMtiCrafter#useBlockDrawer}为false，则使用配方内的drawer*/
     public DrawBlock drawer = new DrawDefault();
+    /** 是否使用方块自己的内的{@link AnyMtiCrafter#drawer}*/
     public boolean useBlockDrawer = true;
+    /** 是否拥有多个液体输出需要不同方向，请参考{@link Formula#liquidOutputDirections}来决定这个参数的值*/
     public boolean hasDoubleOutput = false;
-
+    /** 是否自动为液体添加bar*/
+    public boolean autoAddBar = true;
+    /** 是否使用液体的悬浮显示*/
+    public boolean useLiquidTable = true;
+    /** 液体悬浮显示的背景颜色*/
     public Color liquidTableBack = Pal.gray.cpy().a(0.5f);
+    /** 最多一次显示多少配方*/
+    public int maxList = 4;
 
     public AnyMtiCrafter(String name) {
         super(name);
@@ -86,24 +97,18 @@ public class AnyMtiCrafter extends Block {
     @Override
     public void init() {
         if(products.size > 0){
-            for(var k : products) k.init();
-            for(var k : products){
-                if(k.outputLiquids != null) {
-                    outputsLiquid = hasLiquids = true;
-                    break;
+            for (var product : products) {
+                product.owner = this;
+                product.init();
+                if (product.outputLiquids != null) {
+                    hasLiquids = true;
                 }
-            }
-            for(var k : products){
-                if(k.outputItems != null){
+                if (product.outputItems != null) {
                     hasItems = true;
-                    break;
                 }
-            }
-            for(var k : products){
-                if(k.consPower != null){
+                if (product.consPower != null) {
                     hasPower = true;
                     consume(new ConsumePowerDynamic(b -> b instanceof AnyMtiCrafterBuild ab ? ab.formulaPower() : 0));
-                    break;
                 }
             }
         }
@@ -131,9 +136,13 @@ public class AnyMtiCrafter extends Block {
         super.setStats();
         stats.add(Stat.output, table -> {
             table.row();
-            if(products.size > 0) for(var p : products){
+
+            for (int i = 0; i < products.size; i++){
+                var p = products.get(i);
+                int finalI = i + 1;
                 table.table(Styles.grayPanel, info -> {
                     info.left().defaults().left();
+                    info.add("[accent]配方[]" + finalI + ":").row();
                     Stats stat = new Stats();
                     stat.timePeriod = p.craftTime;
                     if(p.hasConsumers) for(var c : p.consumers){
@@ -347,7 +356,7 @@ public class AnyMtiCrafter extends Block {
         @Override
         public boolean acceptItem(Building source, Item item) {
             if(formula == null) return false;
-            return formula.getConsumeItem(item) && this.items.get(item) < this.getMaximumAccepted(item);
+            return formula.getConsumeItem(item) && this.items.get(item) < itemCapacity;
         }
 
         @Override
@@ -393,7 +402,8 @@ public class AnyMtiCrafter extends Block {
 
         @Override
         public void drawSelect() {
-            if(formula == null) return;
+            super.drawSelect();
+            if(formula == null || !useLiquidTable) return;
 
             if(formula.outputLiquids != null){
                 for(int i = 0; i < formula.outputLiquids.length; i++){
@@ -404,7 +414,7 @@ public class AnyMtiCrafter extends Block {
                                 formula.outputLiquids[i].liquid.fullIcon,
                                 x + Geometry.d4x(dir + rotation) * (size * tilesize / 2f + 4),
                                 y + Geometry.d4y(dir + rotation) * (size * tilesize / 2f + 4),
-                                6f, 8f
+                                8f, 8f
                         );
                     }
                 }
@@ -457,22 +467,28 @@ public class AnyMtiCrafter extends Block {
             super.displayBars(table);
             if(formula == null) return;
             Formula[] lastFormula = {formula};
-            table.table(t -> {
-                table.update(() -> {
-                    if (lastFormula[0] != formula) {
-                        rebuildBar(t);
-                        lastFormula[0] = formula;
-                    }
-                });
-                rebuildBar(t);
+            table.update(() -> {
+                if (lastFormula[0] != formula) {
+                    rebuildBar(table);
+                    lastFormula[0] = formula;
+                }
             });
+            rebuildBar(table);
         }
 
         private void rebuildBar(Table table){
             table.clear();
+
+            for (Func<Building, Bar> buildingBarFunc : block.listBars()) {
+                Bar result = buildingBarFunc.get(this);
+                if (result != null) {
+                    table.add(result).growX();
+                    table.row();
+                }
+            }
             if(formula == null) return;
             if(formula.barMap.size > 0) for(var bar : formula.listBars()){
-                var result = bar.get(self());
+                Bar result = bar.get(self());
                 if(result == null) continue;
                 table.add(result).growX();
                 table.row();
@@ -612,7 +628,7 @@ public class AnyMtiCrafter extends Block {
             }
 
             pane.setOverscroll(false, false);
-            main.add(pane).maxHeight(100 * 5);
+            main.add(pane).maxHeight(100 * maxList);
             table.top().add(main);
         }
 
@@ -663,6 +679,12 @@ public class AnyMtiCrafter extends Block {
         public boolean ignoreLiquidFullness = false;
         public boolean dumpExtraLiquid = true;
 
+        //液体运输只看liquidCapacity
+        //public float maxLiquid = 10f;
+        //所以不如直接全让建筑自己决定得了，哪有建筑不固定容量的，神经（
+        //public int maxItem = 10;
+        public AnyMtiCrafter owner = null;
+
         public float warmupSpeed = 0.02f;
 
         public float updateEffectChance = 0.05f;
@@ -673,7 +695,7 @@ public class AnyMtiCrafter extends Block {
 
         public ObjectMap<Item, Boolean> itemFilter = new ObjectMap<>();
         public ObjectMap<Liquid, Boolean> liquidFilter = new ObjectMap<>();
-        //TODO may use?
+
         protected OrderedMap<String, Func<Building, Bar>> barMap = new OrderedMap<>();
 
         public void init(){
@@ -682,6 +704,19 @@ public class AnyMtiCrafter extends Block {
             nonOptionalConsumers = consumeBuilder.select(consume -> !consume.optional && !consume.ignore()).toArray(Consume.class);
             updateConsumers = consumeBuilder.select(consume -> consume.update && !consume.ignore()).toArray(Consume.class);
             hasConsumers = consumers.length > 0;
+
+            if(owner.autoAddBar){
+                if(liquidFilter.size > 0){
+                    for(Liquid l : liquidFilter.keys().toSeq()){
+                        addLiquidBar(l);
+                    }
+                }
+                if(outputLiquids != null && outputLiquids.length > 0){
+                    for(LiquidStack l : outputLiquids){
+                        addLiquidBar(l.liquid);
+                    }
+                }
+            }
         }
 
         public void setApply(UnlockableContent content){
@@ -699,6 +734,14 @@ public class AnyMtiCrafter extends Block {
 
         public void addBar(String name, Func<Building, Bar> sup){
             barMap.put(name, sup);
+        }
+
+        public void addLiquidBar(Liquid liq){
+            addBar("liquid-" + liq.name, entity -> !liq.unlockedNow() ? null : new Bar(
+                    () -> liq.localizedName,
+                    liq::barColor,
+                    () -> entity.liquids.get(liq) / owner.liquidCapacity
+            ));
         }
 
         public boolean getConsumeItem(Item item){
